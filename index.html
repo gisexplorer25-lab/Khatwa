@@ -1,0 +1,1255 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>خطوة | Khatwa</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🌙</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700;800&family=Cairo:wght@500;600;700;800&display=swap" rel="stylesheet">
+
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+
+<style>
+/* ============ Design tokens ============ */
+:root{
+  --bg:#FAF7F0;
+  --bg-elevated:#FFFFFF;
+  --surface:#F1ECDE;
+  --surface-2:#E9E2D0;
+  --primary:#1B4332;
+  --primary-2:#2D6A4F;
+  --primary-light:#52B788;
+  --primary-soft:#D8F3DC;
+  --gold:#B8912F;
+  --gold-soft:#F3E7C6;
+  --text:#1C2B22;
+  --text-muted:#6B7A6F;
+  --border:#E4DFCE;
+  --danger:#B5544A;
+  --radius-lg:22px;
+  --radius-md:16px;
+  --radius-sm:10px;
+  --shadow:0 8px 24px -12px rgba(27,67,50,0.18);
+  --font-display:'Cairo',sans-serif;
+  --font-body:'Tajawal',sans-serif;
+}
+html.dark{
+  --bg:#0B1912;
+  --bg-elevated:#122417;
+  --surface:#15291C;
+  --surface-2:#1C3324;
+  --primary:#74D6A3;
+  --primary-2:#52B788;
+  --primary-light:#95E3B7;
+  --primary-soft:#1E3C29;
+  --gold:#E4C468;
+  --gold-soft:#2B2917;
+  --text:#EAF3EC;
+  --text-muted:#8FA598;
+  --border:#1F3A29;
+  --shadow:0 8px 28px -12px rgba(0,0,0,0.5);
+}
+*{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+body{margin:0;font-family:var(--font-body);background:var(--bg);color:var(--text);transition:background .3s,color .3s;}
+html[dir="ltr"] body{font-family:'Tajawal',sans-serif;}
+h1,h2,h3,.display{font-family:var(--font-display);}
+button{font-family:inherit;cursor:pointer;}
+input,select{font-family:inherit;}
+a{color:inherit;text-decoration:none;}
+::selection{background:var(--primary-soft);}
+
+.hidden{display:none !important;}
+.app{min-height:100vh;display:flex;flex-direction:column;}
+
+/* ============ Loading / Auth screens ============ */
+#loadingScreen{position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;z-index:999;flex-direction:column;gap:14px;}
+.loader-step{width:46px;height:46px;border-radius:50%;border:3px solid var(--primary-soft);border-top-color:var(--primary);animation:spin 0.9s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
+.loading-text{color:var(--text-muted);font-size:14px;}
+
+.auth-wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;background:
+  radial-gradient(circle at 20% 10%, var(--primary-soft), transparent 55%),
+  radial-gradient(circle at 85% 85%, var(--gold-soft), transparent 45%),
+  var(--bg);
+}
+.auth-card{width:100%;max-width:400px;background:var(--bg-elevated);border-radius:var(--radius-lg);padding:36px 28px;box-shadow:var(--shadow);border:1px solid var(--border);}
+.brand{text-align:center;margin-bottom:22px;}
+.brand-mark{font-size:34px;margin-bottom:6px;}
+.brand-title{font-family:var(--font-display);font-weight:800;font-size:26px;color:var(--primary);letter-spacing:.5px;}
+.brand-sub{color:var(--text-muted);font-size:13.5px;margin-top:4px;}
+.field{margin-bottom:14px;}
+.field label{display:block;font-size:13px;color:var(--text-muted);margin-bottom:6px;}
+.field input, .field select{width:100%;padding:12px 14px;border-radius:var(--radius-sm);border:1.5px solid var(--border);background:var(--surface);color:var(--text);font-size:14.5px;outline:none;transition:border-color .2s;}
+.field input:focus, .field select:focus{border-color:var(--primary-light);}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:13px 18px;border-radius:14px;border:none;font-size:15px;font-weight:700;transition:transform .15s, opacity .15s;}
+.btn:active{transform:scale(0.97);}
+.btn-primary{background:var(--primary);color:#fff;}
+.btn-primary:hover{opacity:.92;}
+.btn-outline{background:transparent;border:1.5px solid var(--border);color:var(--text);}
+.btn-google{background:var(--bg-elevated);border:1.5px solid var(--border);color:var(--text);}
+.btn-ghost{background:transparent;border:none;color:var(--primary);font-weight:700;}
+.auth-switch{text-align:center;margin-top:16px;font-size:13.5px;color:var(--text-muted);}
+.auth-error{background:#FBEAE8;color:var(--danger);border-radius:10px;padding:10px 12px;font-size:13px;margin-bottom:14px;}
+.pass-wrap{position:relative;}
+.pass-wrap input{padding-left:44px;}
+html[dir="ltr"] .pass-wrap input{padding-left:14px;padding-right:44px;}
+.eye-btn{position:absolute;left:6px;top:50%;transform:translateY(-50%);background:none;border:none;font-size:16px;padding:6px;opacity:.6;}
+html[dir="ltr"] .eye-btn{left:auto;right:6px;}
+.eye-btn:hover{opacity:1;}
+.btn[disabled]{opacity:.75;pointer-events:none;}
+.btn .spin{display:inline-block;width:15px;height:15px;border-radius:50%;border:2px solid rgba(255,255,255,.5);border-top-color:#fff;animation:spin .7s linear infinite;}
+.btn-outline .spin,.btn-google .spin{border-color:rgba(0,0,0,.15);border-top-color:var(--primary);}
+html.dark .auth-error{background:#3A1C19;}
+.divider-row{display:flex;align-items:center;gap:10px;margin:16px 0;color:var(--text-muted);font-size:12px;}
+.divider-row::before,.divider-row::after{content:'';flex:1;height:1px;background:var(--border);}
+
+/* ============ Onboarding ============ */
+.ob-wrap{min-height:100vh;display:flex;flex-direction:column;background:var(--bg);}
+.ob-progress{display:flex;gap:6px;padding:20px 24px 0;}
+.ob-progress span{flex:1;height:4px;border-radius:4px;background:var(--border);}
+.ob-progress span.active{background:var(--primary);}
+.ob-body{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;text-align:center;max-width:460px;margin:0 auto;width:100%;}
+.ob-emoji{font-size:44px;margin-bottom:16px;}
+.ob-title{font-family:var(--font-display);font-size:24px;font-weight:800;margin-bottom:10px;}
+.ob-sub{color:var(--text-muted);font-size:14.5px;margin-bottom:28px;line-height:1.7;}
+.ob-options{width:100%;display:flex;flex-direction:column;gap:10px;margin-bottom:8px;}
+.ob-option{display:flex;align-items:center;gap:12px;padding:15px 16px;border-radius:16px;border:1.5px solid var(--border);background:var(--bg-elevated);text-align:right;font-size:14.5px;font-weight:600;transition:.15s;}
+html[dir="ltr"] .ob-option{text-align:left;}
+.ob-option.selected{border-color:var(--primary);background:var(--primary-soft);color:var(--primary);}
+.ob-option .check{width:20px;height:20px;border-radius:50%;border:2px solid var(--border);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:11px;}
+.ob-option.selected .check{background:var(--primary);border-color:var(--primary);color:#fff;}
+.ob-footer{padding:18px 24px 30px;max-width:460px;margin:0 auto;width:100%;}
+
+/* ============ App shell ============ */
+.topbar{display:none;}
+.shell{display:flex;flex:1;min-height:100vh;}
+.sidebar{width:230px;flex-shrink:0;background:var(--bg-elevated);border-left:1px solid var(--border);padding:26px 18px;display:none;flex-direction:column;position:sticky;top:0;height:100vh;}
+html[dir="ltr"] .sidebar{border-left:none;border-right:1px solid var(--border);}
+.sidebar-brand{display:flex;align-items:center;gap:10px;padding:0 8px 26px;font-family:var(--font-display);font-weight:800;font-size:19px;color:var(--primary);}
+.side-nav{display:flex;flex-direction:column;gap:4px;}
+.side-link{display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:14px;color:var(--text-muted);font-weight:600;font-size:14.5px;background:none;border:none;text-align:right;}
+html[dir="ltr"] .side-link{text-align:left;}
+.side-link.active{background:var(--primary-soft);color:var(--primary);}
+.side-link .ic{font-size:18px;}
+.sidebar-foot{margin-top:auto;font-size:12px;color:var(--text-muted);padding:8px;}
+
+.main{flex:1;min-width:0;padding:18px 16px 96px;max-width:720px;margin:0 auto;width:100%;}
+@media(min-width:900px){
+  .sidebar{display:flex;}
+  .main{padding:32px 40px 60px;max-width:640px;}
+  .bottomnav{display:none !important;}
+}
+
+.page{display:none;animation:fadein .35s ease;}
+.page.active{display:block;}
+@keyframes fadein{from{opacity:0;transform:translateY(6px);}to{opacity:1;transform:translateY(0);}}
+
+/* header row */
+.page-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;}
+.greeting{font-family:var(--font-display);font-size:21px;font-weight:800;}
+.date-line{color:var(--text-muted);font-size:13px;margin-top:2px;}
+.avatar-btn{width:40px;height:40px;border-radius:50%;background:var(--primary-soft);color:var(--primary);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:15px;border:none;}
+
+/* card */
+.card{background:var(--bg-elevated);border:1px solid var(--border);border-radius:var(--radius-lg);padding:18px;margin-bottom:14px;box-shadow:var(--shadow);}
+.card-title{display:flex;align-items:center;gap:8px;font-weight:700;font-size:15px;margin-bottom:12px;}
+.card-title .badge{margin-inline-start:auto;font-size:12.5px;color:var(--text-muted);font-weight:600;}
+
+/* step path (signature element) */
+.steppath-scroll{overflow-x:auto;padding:6px 2px 10px;}
+.steppath{display:flex;align-items:center;gap:0;min-width:max-content;padding:4px 2px;}
+.step-dot{width:26px;height:26px;border-radius:50%;background:var(--surface);border:2px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:var(--text-muted);flex-shrink:0;position:relative;}
+.step-dot.done{background:var(--primary);border-color:var(--primary);color:#fff;}
+.step-dot.partial{background:var(--gold-soft);border-color:var(--gold);color:var(--gold);}
+.step-dot.today{box-shadow:0 0 0 3px var(--gold-soft);border-color:var(--gold);}
+.step-line{width:14px;height:2px;background:var(--border);flex-shrink:0;}
+.step-line.done{background:var(--primary-light);}
+.journey-meta{display:flex;justify-content:space-between;font-size:13px;color:var(--text-muted);margin-top:4px;}
+.journey-meta b{color:var(--text);}
+
+/* prayer rows */
+.prayer-row{display:flex;align-items:center;gap:12px;padding:12px 6px;border-bottom:1px solid var(--border);}
+.prayer-row:last-child{border-bottom:none;}
+.prayer-ic{width:38px;height:38px;border-radius:12px;background:var(--surface);display:flex;align-items:center;justify-content:center;font-size:17px;flex-shrink:0;}
+.prayer-info{flex:1;min-width:0;}
+.prayer-name{font-weight:700;font-size:14.5px;}
+.prayer-time{color:var(--text-muted);font-size:12.5px;margin-top:1px;}
+.prayer-check{width:34px;height:34px;border-radius:50%;border:2px solid var(--border);background:var(--bg-elevated);display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0;transition:.2s;}
+.prayer-check.done{background:var(--primary);border-color:var(--primary);color:#fff;transform:scale(1.05);}
+.prayer-status-pill{font-size:11px;color:var(--text-muted);background:var(--surface);border-radius:8px;padding:2px 8px;margin-inline-end:6px;}
+
+.progress-bar{height:8px;border-radius:8px;background:var(--surface);overflow:hidden;margin:8px 0;}
+.progress-bar > div{height:100%;background:linear-gradient(90deg,var(--primary-2),var(--primary-light));border-radius:8px;transition:width .5s ease;}
+
+/* next prayer */
+.next-prayer{background:linear-gradient(135deg,var(--primary),var(--primary-2));color:#fff;border-radius:var(--radius-lg);padding:20px;margin-bottom:14px;position:relative;overflow:hidden;}
+.next-prayer::after{content:'🌙';position:absolute;font-size:90px;opacity:.08;left:-10px;bottom:-20px;}
+html[dir="ltr"] .next-prayer::after{left:auto;right:-10px;}
+.next-prayer .lbl{font-size:12.5px;opacity:.85;}
+.next-prayer .name{font-family:var(--font-display);font-size:22px;font-weight:800;margin:4px 0;}
+.next-prayer .countdown{font-size:26px;font-weight:800;letter-spacing:1px;font-variant-numeric:tabular-nums;}
+
+/* quran card */
+.quran-surah{font-family:var(--font-display);font-size:19px;font-weight:800;color:var(--primary);}
+.quran-meta{color:var(--text-muted);font-size:13px;margin-top:2px;}
+
+/* streak */
+.streak-flame{display:flex;align-items:center;gap:10px;}
+.streak-num{font-family:var(--font-display);font-size:30px;font-weight:800;color:var(--gold);}
+
+/* encouragement toast */
+.toast{position:fixed;bottom:90px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--text);color:var(--bg);padding:12px 22px;border-radius:30px;font-size:14px;font-weight:600;opacity:0;transition:.35s;z-index:500;box-shadow:var(--shadow);pointer-events:none;white-space:nowrap;}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+@media(min-width:900px){.toast{bottom:30px;}}
+
+/* bottom nav */
+.bottomnav{position:fixed;bottom:0;left:0;right:0;background:var(--bg-elevated);border-top:1px solid var(--border);display:flex;justify-content:space-around;padding:8px 4px calc(8px + env(safe-area-inset-bottom));z-index:100;}
+.bn-btn{background:none;border:none;display:flex;flex-direction:column;align-items:center;gap:3px;color:var(--text-muted);font-size:10.5px;font-weight:600;padding:4px 10px;border-radius:12px;}
+.bn-btn .ic{font-size:19px;}
+.bn-btn.active{color:var(--primary);}
+
+/* calendar */
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;margin-top:10px;}
+.cal-dow{text-align:center;font-size:11px;color:var(--text-muted);font-weight:700;}
+.cal-cell{aspect-ratio:1;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:12.5px;font-weight:600;background:var(--surface);color:var(--text-muted);border:1.5px solid transparent;}
+.cal-cell.done{background:var(--primary);color:#fff;}
+.cal-cell.partial{background:var(--gold-soft);color:var(--gold);}
+.cal-cell.today{border-color:var(--gold);}
+.cal-cell.empty{background:transparent;}
+.cal-nav{display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;}
+.cal-nav button{background:var(--surface);border:none;width:30px;height:30px;border-radius:50%;font-size:14px;}
+
+/* stats grid */
+.stat-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.stat-box{background:var(--surface);border-radius:16px;padding:14px;}
+.stat-box .v{font-family:var(--font-display);font-size:22px;font-weight:800;color:var(--primary);}
+.stat-box .l{font-size:12px;color:var(--text-muted);margin-top:2px;}
+
+/* achievements */
+.ach-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.ach-item{background:var(--surface);border-radius:16px;padding:14px;text-align:center;opacity:.4;filter:grayscale(1);}
+.ach-item.unlocked{opacity:1;filter:none;background:var(--primary-soft);}
+.ach-emoji{font-size:26px;}
+.ach-name{font-weight:700;font-size:12.5px;margin-top:6px;}
+.ach-desc{font-size:10.5px;color:var(--text-muted);margin-top:2px;}
+
+/* account */
+.settings-row{display:flex;align-items:center;justify-content:space-between;padding:14px 4px;border-bottom:1px solid var(--border);}
+.settings-row:last-child{border-bottom:none;}
+.settings-row .lbl{font-size:14px;font-weight:600;}
+.settings-row .sub{font-size:12px;color:var(--text-muted);margin-top:2px;}
+.switch{width:44px;height:25px;border-radius:20px;background:var(--border);position:relative;border:none;flex-shrink:0;transition:.2s;}
+.switch::after{content:'';position:absolute;top:2px;right:2px;width:21px;height:21px;background:#fff;border-radius:50%;transition:.2s;}
+.switch.on{background:var(--primary);}
+.switch.on::after{transform:translateX(-19px);}
+html[dir="ltr"] .switch::after{right:auto;left:2px;}
+html[dir="ltr"] .switch.on::after{transform:translateX(19px);}
+.seg{display:flex;background:var(--surface);border-radius:12px;padding:3px;gap:2px;}
+.seg button{flex:1;padding:8px 10px;border:none;border-radius:9px;background:transparent;font-size:12.5px;font-weight:700;color:var(--text-muted);}
+.seg button.active{background:var(--bg-elevated);color:var(--primary);box-shadow:0 1px 3px rgba(0,0,0,.08);}
+
+/* modal */
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:600;display:flex;align-items:flex-end;justify-content:center;}
+@media(min-width:640px){.modal-bg{align-items:center;}}
+.modal{background:var(--bg-elevated);border-radius:24px 24px 0 0;padding:24px 20px;width:100%;max-width:440px;max-height:85vh;overflow-y:auto;}
+@media(min-width:640px){.modal{border-radius:24px;}}
+.modal-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;}
+.modal-close{background:var(--surface);border:none;width:30px;height:30px;border-radius:50%;font-size:15px;}
+.dhikr-row{display:flex;align-items:center;justify-content:space-between;background:var(--surface);border-radius:14px;padding:14px;margin-bottom:10px;}
+.dhikr-text{font-size:14.5px;font-weight:700;}
+.dhikr-count{font-size:12px;color:var(--text-muted);margin-top:2px;}
+.dhikr-plus{width:38px;height:38px;border-radius:50%;background:var(--primary);color:#fff;border:none;font-size:18px;font-weight:800;flex-shrink:0;}
+
+.section-title{font-size:13px;font-weight:800;color:var(--text-muted);margin:22px 0 10px;padding:0 4px;}
+.icon-row{display:flex;gap:8px;flex-wrap:wrap;}
+.status-choice{padding:9px 14px;border-radius:12px;border:1.5px solid var(--border);font-size:13px;font-weight:600;background:var(--bg-elevated);}
+.status-choice.active{background:var(--primary);color:#fff;border-color:var(--primary);}
+</style>
+</head>
+<body>
+
+<div id="loadingScreen"><div class="loader-step"></div><div class="loading-text">جاري التحميل…</div></div>
+
+<div class="app hidden" id="app">
+
+  <!-- ===================== AUTH ===================== -->
+  <div class="auth-wrap hidden" id="view-auth">
+    <div class="auth-card">
+      <div class="brand">
+        <div class="brand-mark">🌙</div>
+        <div class="brand-title">خطوة | KHATWA</div>
+        <div class="brand-sub">خطوة كل يوم… تقرّبك أكثر ❤️</div>
+      </div>
+      <div id="authError" class="auth-error hidden"></div>
+
+      <div id="loginForm">
+        <div class="field"><label>اسم المستخدم</label><input type="text" id="loginUsername" placeholder="اسمك اللي هتدخل بيه" autocapitalize="off"></div>
+        <div class="field">
+          <label>كلمة المرور</label>
+          <div class="pass-wrap">
+            <input type="password" id="loginPass" placeholder="••••••••">
+            <button type="button" class="eye-btn" onclick="togglePass('loginPass', this)">👁️</button>
+          </div>
+        </div>
+        <button class="btn btn-primary" id="loginBtn" onclick="doLogin()">تسجيل الدخول</button>
+        <div class="divider-row">أو</div>
+        <button class="btn btn-google" id="googleBtn" onclick="doGoogle()">🔎 المتابعة بحساب Google</button>
+        <div class="auth-switch">مستخدم جديد؟ <button class="btn-ghost" onclick="toggleAuthMode()">اعمل حساب</button></div>
+      </div>
+
+      <div id="signupForm" class="hidden">
+        <div class="field"><label>الاسم</label><input type="text" id="suName" placeholder="اسمك"></div>
+        <div class="field"><label>اسم المستخدم</label><input type="text" id="suUsername" placeholder="حروف إنجليزي وأرقام بس، من غير مسافات" autocapitalize="off"></div>
+        <div class="field">
+          <label>كلمة المرور</label>
+          <div class="pass-wrap">
+            <input type="password" id="suPass" placeholder="6 حروف على الأقل">
+            <button type="button" class="eye-btn" onclick="togglePass('suPass', this)">👁️</button>
+          </div>
+        </div>
+        <button class="btn btn-primary" id="signupBtn" onclick="doSignup()">اعمل حساب</button>
+        <div class="divider-row">أو</div>
+        <button class="btn btn-google" id="googleBtn2" onclick="doGoogle()">🔎 المتابعة بحساب Google</button>
+        <div class="auth-switch">عندك حساب بالفعل؟ <button class="btn-ghost" onclick="toggleAuthMode()">سجّل دخول</button></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================== ONBOARDING ===================== -->
+  <div class="ob-wrap hidden" id="view-onboarding">
+    <div class="ob-progress" id="obProgress"></div>
+    <div class="ob-body" id="obBody"></div>
+    <div class="ob-footer"><button class="btn btn-primary" id="obNextBtn" onclick="obNext()">التالي</button></div>
+  </div>
+
+  <!-- ===================== MAIN SHELL ===================== -->
+  <div class="shell hidden" id="view-main">
+    <div class="sidebar">
+      <div class="sidebar-brand">🌙 خطوة</div>
+      <nav class="side-nav" id="sideNav"></nav>
+      <div class="sidebar-foot">خطوة كل يوم… تقرّبك أكثر ❤️</div>
+    </div>
+
+    <div class="main">
+      <!-- ---- DASHBOARD ---- -->
+      <section class="page active" id="page-dashboard">
+        <div class="page-header">
+          <div>
+            <div class="greeting" id="greetingText">السلام عليكم 👋</div>
+            <div class="date-line" id="todayDateLine"></div>
+          </div>
+          <button class="avatar-btn" onclick="goPage('account')" id="avatarInitial">؟</button>
+        </div>
+
+        <div class="card">
+          <div class="card-title">🌙 رحلة الـ30 يوم <span class="badge" id="journeyDayLabel">اليوم 1 من 30</span></div>
+          <div class="steppath-scroll"><div class="steppath" id="steppath"></div></div>
+          <div class="journey-meta"><span>باقي <b id="daysRemainingLabel">29</b> يومًا</span><span id="encourageMini"></span></div>
+        </div>
+
+        <div class="next-prayer" id="nextPrayerCard">
+          <div class="lbl">⏳ الصلاة القادمة</div>
+          <div class="name" id="npName">—</div>
+          <div class="countdown" id="npCountdown">--:--:--</div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">🕌 صلوات اليوم <span class="badge"><span id="prayerDoneCount">0</span> / 5</span></div>
+          <div class="progress-bar"><div id="prayerProgressBar" style="width:0%"></div></div>
+          <div id="dashPrayerList"></div>
+        </div>
+
+        <div class="card" onclick="goPage('quran')" style="cursor:pointer">
+          <div class="card-title">📖 ورد القرآن اليوم</div>
+          <div class="quran-surah" id="dashSurahName">—</div>
+          <div class="quran-meta" id="dashSurahMeta">—</div>
+          <button class="btn btn-primary" style="margin-top:12px" onclick="event.stopPropagation();openQuranReader()" id="dashQuranBtn">ابدأ القراءة</button>
+        </div>
+
+        <div class="card">
+          <div class="card-title">🔥 الالتزام المتتالي</div>
+          <div class="streak-flame"><div class="streak-num" id="dashStreak">0</div><div style="color:var(--text-muted);font-size:13.5px" id="streakNote">ابدأ اليوم أول خطوة ❤️</div></div>
+        </div>
+      </section>
+
+      <!-- ---- PRAYER ---- -->
+      <section class="page" id="page-prayer">
+        <div class="page-header"><div class="greeting">🕌 صلوات اليوم</div></div>
+        <div class="card">
+          <div class="progress-bar"><div id="prayerProgressBar2" style="width:0%"></div></div>
+          <div id="prayerFullList"></div>
+        </div>
+        <div class="card">
+          <div class="card-title">🕌 مواقيت اليوم</div>
+          <div id="timingsList" style="font-size:14px;color:var(--text-muted)">جاري حساب المواقيت…</div>
+        </div>
+      </section>
+
+      <!-- ---- QURAN ---- -->
+      <section class="page" id="page-quran">
+        <div class="page-header"><div class="greeting">📖 القرآن</div></div>
+        <div class="card">
+          <div class="card-title">ورد اليوم</div>
+          <div class="quran-surah" id="qSurahName">—</div>
+          <div class="quran-meta" id="qSurahMeta">—</div>
+          <button class="btn btn-primary" style="margin-top:14px" onclick="openQuranReader()" id="qBtn">ابدأ القراءة</button>
+        </div>
+        <div class="stat-grid">
+          <div class="stat-box"><div class="v" id="qDaysMonth">0</div><div class="l">أيام القراءة هذا الشهر</div></div>
+          <div class="stat-box"><div class="v" id="qTotalSurahs">0</div><div class="l">إجمالي السور المقروءة</div></div>
+        </div>
+        <div class="card" style="margin-top:14px">
+          <div class="card-title">🎯 هدفك اليومي</div>
+          <div id="quranGoalPicker" class="icon-row"></div>
+        </div>
+      </section>
+
+      <!-- ---- JOURNEY ---- -->
+      <section class="page" id="page-journey">
+        <div class="page-header"><div class="greeting">📊 رحلتي</div></div>
+        <div class="stat-grid">
+          <div class="stat-box"><div class="v" id="stPrayers">0/0</div><div class="l">الصلوات هذا الشهر</div></div>
+          <div class="stat-box"><div class="v" id="stQuran">0</div><div class="l">أيام القرآن</div></div>
+          <div class="stat-box"><div class="v" id="stStreak">0</div><div class="l">🔥 أطول Streak</div></div>
+          <div class="stat-box"><div class="v" id="stCompleteDays">0</div><div class="l">🏆 أيام مكتملة</div></div>
+        </div>
+        <div class="card" style="margin-top:14px">
+          <div class="cal-nav">
+            <button onclick="calShift(-1)">‹</button>
+            <div class="card-title" id="calMonthLabel" style="margin:0">—</div>
+            <button onclick="calShift(1)">›</button>
+          </div>
+          <div class="cal-grid" id="calGrid"></div>
+        </div>
+        <div class="section-title">🏆 إنجازاتي</div>
+        <div class="ach-grid" id="achGrid"></div>
+      </section>
+
+      <!-- ---- ACCOUNT ---- -->
+      <section class="page" id="page-account">
+        <div class="page-header"><div class="greeting">👤 حسابي</div></div>
+        <div class="card">
+          <div class="field"><label>الاسم</label><input type="text" id="accName" onchange="updateProfileField('name', this.value)"></div>
+          <div class="settings-row">
+            <div><div class="lbl">الوضع الداكن</div></div>
+            <button class="switch" id="themeSwitch" onclick="toggleTheme()"></button>
+          </div>
+          <div class="settings-row">
+            <div><div class="lbl">اللغة / Language</div></div>
+            <div class="seg"><button id="langAr" onclick="setLang('ar')">عربي</button><button id="langEn" onclick="setLang('en')">EN</button></div>
+          </div>
+          <div class="settings-row">
+            <div><div class="lbl">الإشعارات</div><div class="sub">تذكير بالصلاة والورد</div></div>
+            <button class="switch" id="notifSwitch" onclick="toggleNotifications()"></button>
+          </div>
+        </div>
+
+        <div class="section-title">مواقيت الصلاة</div>
+        <div class="card">
+          <div class="field"><label>المدينة</label><input type="text" id="accCity" placeholder="مثال: القاهرة"></div>
+          <div class="field"><label>طريقة الحساب</label>
+            <select id="accMethod">
+              <option value="5">الهيئة المصرية العامة للمساحة</option>
+              <option value="4">أم القرى (السعودية)</option>
+              <option value="3">رابطة العالم الإسلامي</option>
+              <option value="2">ISNA</option>
+            </select>
+          </div>
+          <button class="btn btn-outline" onclick="saveCitySettings()">حفظ وإعادة الحساب</button>
+        </div>
+
+        <div class="section-title">إعدادات إضافية</div>
+        <div class="card">
+          <div class="settings-row" style="cursor:pointer" onclick="openAdhkar()">
+            <div><div class="lbl">🤲 الأذكار اليومية</div></div><span>‹</span>
+          </div>
+          <div class="settings-row" style="cursor:pointer" onclick="confirmReset()">
+            <div><div class="lbl" style="color:var(--danger)">إعادة تعيين التقدم</div></div><span>‹</span>
+          </div>
+          <div class="settings-row" style="cursor:pointer" onclick="doLogout()">
+            <div><div class="lbl">تسجيل الخروج</div></div><span>‹</span>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <div class="bottomnav" id="bottomNav"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<!-- Adhkar modal -->
+<div class="modal-bg hidden" id="adhkarModal">
+  <div class="modal">
+    <div class="modal-head"><div class="greeting" style="font-size:17px">🤲 أذكار اليوم</div><button class="modal-close" onclick="closeModal('adhkarModal')">✕</button></div>
+    <div id="adhkarBody"></div>
+  </div>
+</div>
+
+<!-- Quran reader modal -->
+<div class="modal-bg hidden" id="quranModal">
+  <div class="modal">
+    <div class="modal-head"><div class="greeting" style="font-size:17px" id="qmTitle">القراءة</div><button class="modal-close" onclick="closeModal('quranModal')">✕</button></div>
+    <p style="color:var(--text-muted);line-height:2;font-size:14.5px" id="qmBody"></p>
+    <button class="btn btn-primary" onclick="completeQuranToday()">✅ أتممت ورد اليوم</button>
+  </div>
+</div>
+
+<!-- Prayer status modal -->
+<div class="modal-bg hidden" id="prayerStatusModal">
+  <div class="modal">
+    <div class="modal-head"><div class="greeting" style="font-size:17px" id="psTitle">حالة الصلاة</div><button class="modal-close" onclick="closeModal('prayerStatusModal')">✕</button></div>
+    <div class="icon-row" id="psChoices"></div>
+  </div>
+</div>
+
+<script>
+/* =====================================================================
+   KHATWA — فايربيز الإعداد
+   ⚠️ استبدل authDomain / projectId / storageBucket / messagingSenderId
+   بالقيم الحقيقية من Firebase Console > Project settings > SDK setup
+   ===================================================================== */
+const firebaseConfig = {
+  apiKey: "AIzaSyAWhLRourMUQ8Miv69zUc-qv5cDfPJG6qE",
+  authDomain: "khatwa-61989.firebaseapp.com",
+  projectId: "khatwa-61989",
+  storageBucket: "khatwa-61989.firebasestorage.app",
+  messagingSenderId: "681690372900",
+  appId: "1:681690372900:web:d318bdcc731f013feb31b1",
+  measurementId: "G-V3B7CS5MJZ"
+};
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const db = firebase.firestore();
+
+/* ============ i18n ============ */
+const DICT = {
+  ar:{ greeting:"السلام عليكم 👋", home:"الرئيسية", prayer:"الصلاة", quran:"القرآن", journey:"رحلتي", account:"حسابي" },
+  en:{ greeting:"Assalamu alaikum 👋", home:"Home", prayer:"Prayer", quran:"Quran", journey:"Journey", account:"Account" }
+};
+let LANG = localStorage.getItem('khatwa_lang') || 'ar';
+
+/* ============ data ============ */
+const PRAYERS = [
+  {key:'fajr', name:'الفجر', ic:'🌅'},
+  {key:'dhuhr', name:'الظهر', ic:'☀️'},
+  {key:'asr', name:'العصر', ic:'🌤️'},
+  {key:'maghrib', name:'المغرب', ic:'🌇'},
+  {key:'isha', name:'العشاء', ic:'🌙'}
+];
+const SURAH_PLAN = [
+  {name:'الضحى', verses:11},{name:'الشرح', verses:8},{name:'التين', verses:8},
+  {name:'القدر', verses:5},{name:'الزلزلة', verses:8},{name:'العاديات', verses:11},
+  {name:'العصر', verses:3},{name:'الهمزة', verses:9},{name:'الفيل', verses:5},
+  {name:'قريش', verses:4},{name:'الماعون', verses:7},{name:'الكوثر', verses:3},
+  {name:'الكافرون', verses:6},{name:'النصر', verses:3},{name:'المسد', verses:5},
+  {name:'الإخلاص', verses:4},{name:'الفلق', verses:5},{name:'الناس', verses:6},
+  {name:'الفجر', verses:30},{name:'البلد', verses:20},{name:'الشمس', verses:15},
+  {name:'الليل', verses:21},{name:'الطارق', verses:17},{name:'الأعلى', verses:19},
+  {name:'الغاشية', verses:26},{name:'الانشقاق', verses:25},{name:'المطففين', verses:36},
+  {name:'الانفطار', verses:19},{name:'التكوير', verses:29},{name:'عبس', verses:42}
+];
+const QURAN_GOALS = [
+  {id:'surah', label:'سورة واحدة'},{id:'p5', label:'5 صفحات'},{id:'p10', label:'10 صفحات'},
+  {id:'half_juz', label:'نصف جزء'},{id:'juz', label:'جزء كامل'},{id:'min10', label:'10 دقائق قراءة'}
+];
+const ENCOURAGE_PRAYER = ["ربنا يتقبل منك ❤️","خطوة جميلة.","استمر، واحدة واحدة.","الحمد لله ❤️"];
+const ENCOURAGE_DAY = ["ما شاء الله، يوم جميل. 🎉","الحمد لله على التوفيق ❤️","يوم موفق، استمر هكذا."];
+const ENCOURAGE_COMEBACK = "ولا يهمك ❤️ المهم إنك رجعت. ابدأ من الصلاة القادمة.";
+const PRAYER_STATUS = [
+  {id:'ontime', label:'صليتها في وقتها'},{id:'late', label:'صليتها متأخرًا'},
+  {id:'qada', label:'قضاء'},{id:'none', label:'لم أصلها'}
+];
+const ACHIEVEMENTS = [
+  {id:'first_step', emoji:'🌱', name:'أول خطوة', desc:'أكملت أول يوم', cond:d=>d.completeDays>=1},
+  {id:'five_five', emoji:'🕌', name:'5/5', desc:'صلوات كاملة في يوم', cond:d=>d.everFullPrayerDay},
+  {id:'first_wird', emoji:'📖', name:'أول ورد', desc:'أكملت أول ورد قرآن', cond:d=>d.quranDaysTotal>=1},
+  {id:'week', emoji:'🔥', name:'أسبوع', desc:'7 أيام متتالية', cond:d=>d.longestStreak>=7},
+  {id:'two_weeks', emoji:'🔥🔥', name:'أسبوعان', desc:'14 يومًا متتاليًا', cond:d=>d.longestStreak>=14},
+  {id:'thirty', emoji:'🏆', name:'30 يوم', desc:'أكملت رحلة الـ30 يوم', cond:d=>d.completeDays>=30}
+];
+const ADHKAR = {
+  morning:[{t:'أستغفر الله',n:3},{t:'سبحان الله وبحمده',n:33},{t:'لا إله إلا الله وحده لا شريك له',n:10}],
+  evening:[{t:'أعوذ بكلمات الله التامات من شر ما خلق',n:3},{t:'سبحان الله وبحمده',n:33},{t:'اللهم أنت ربي لا إله إلا أنت',n:1}],
+  sleep:[{t:'سبحان الله',n:33},{t:'الحمد لله',n:33},{t:'الله أكبر',n:34}]
+};
+
+/* ============ state ============ */
+let CUR_USER = null;
+let PROFILE = {};
+let TODAY = todayStr();
+let TODAY_DATA = {prayers:{}, quran:{}};
+let MONTH_CACHE = {};
+let ADHKAR_STATE = {};
+let obStep = 0, obAnswers = {goals:[], quranGoal:'surah', city:''};
+let CAL_MONTH = new Date();
+let countdownTimer = null;
+let cachedTimings = null;
+
+function todayStr(d=new Date()){ return d.toISOString().slice(0,10); }
+function $(id){ return document.getElementById(id); }
+function showToast(msg){
+  const t=$('toast'); t.textContent=msg; t.classList.add('show');
+  clearTimeout(t._h); t._h=setTimeout(()=>t.classList.remove('show'), 2600);
+}
+function openModal(id){ $(id).classList.remove('hidden'); }
+function closeModal(id){ $(id).classList.add('hidden'); }
+
+/* ============ AUTH ============ */
+function toggleAuthMode(){
+  $('loginForm').classList.toggle('hidden');
+  $('signupForm').classList.toggle('hidden');
+  $('authError').classList.add('hidden');
+  [$('loginBtn'),$('signupBtn'),$('googleBtn'),$('googleBtn2')].forEach(resetBtn);
+}
+function showAuthError(e){
+  const el = $('authError'); el.textContent = friendlyError(e); el.classList.remove('hidden');
+}
+function togglePass(id, btn){
+  const inp = $(id);
+  const show = inp.type==='password';
+  inp.type = show ? 'text' : 'password';
+  btn.textContent = show ? '🙈' : '👁️';
+}
+function setBtnLoading(btn, text){
+  if(!btn) return;
+  btn._orig = btn._orig || btn.innerHTML;
+  btn.dataset.loading='1';
+  btn.disabled = true;
+  btn.innerHTML = `<span class="spin"></span> ${text}`;
+}
+function resetBtn(btn){
+  if(!btn) return;
+  btn.disabled = false;
+  btn.dataset.loading='';
+  if(btn._orig) btn.innerHTML = btn._orig;
+}
+function friendlyError(e){
+  const c = e && e.code || '';
+  if(c.includes('user-not-found')||c.includes('wrong-password')||c.includes('invalid-credential')) return 'اسم المستخدم أو كلمة المرور غلط، جرب تاني.';
+  if(c.includes('email-already-in-use')) return 'اسم المستخدم ده متاخد، جرب اسم تاني.';
+  if(c.includes('weak-password')) return 'كلمة المرور ضعيفة شوية، خليها 6 حروف على الأقل.';
+  if(c.includes('invalid-email')) return 'اسم المستخدم لازم يكون حروف إنجليزي و/أو أرقام بس، من غير مسافات.';
+  if(c.includes('unauthorized-domain')) return 'الدومين اللي بتفتح منه الموقع مش مضاف في Firebase (Authentication > Settings > Authorized domains).';
+  if(c.includes('popup-blocked')) return 'المتصفح قفل نافذة الدخول، افتح النوافذ المنبثقة وجرب تاني.';
+  if(c.includes('popup-closed-by-user')) return 'قفلت نافذة الدخول قبل ما تخلص.';
+  if(c.includes('operation-not-allowed')) return 'طريقة الدخول دي لسه مش مفعّلة في Firebase (Authentication > Sign-in method).';
+  if(c.includes('network-request-failed')) return 'اتأكد من النت وجرب تاني.';
+  return 'حصل خطأ: ' + (e && e.message ? e.message : 'مش معروف') + (c?(' ('+c+')'):'');
+}
+function usernameToEmail(username){
+  const clean = (username||'').trim().toLowerCase().replace(/[^a-z0-9_.]/g,'');
+  return clean ? clean+'@khatwa.app' : null;
+}
+function doLogin(){
+  const uname=$('loginUsername').value, pass=$('loginPass').value;
+  const email = usernameToEmail(uname);
+  if(!email||!pass) return showAuthError({code:'invalid-email'});
+  const btn = $('loginBtn');
+  setBtnLoading(btn, 'بيتم تسجيل الدخول…');
+  $('authError').classList.add('hidden');
+  auth.signInWithEmailAndPassword(email,pass)
+    .catch(e=>{ resetBtn(btn); showAuthError(e); });
+  // note: on success, onAuthStateChanged takes over and swaps the screen — button state no longer matters
+}
+function doSignup(){
+  const name=$('suName').value.trim(), uname=$('suUsername').value, pass=$('suPass').value;
+  const email = usernameToEmail(uname);
+  if(!name){ showAuthError({message:'اكتب اسمك الأول'}); return; }
+  if(!email){ showAuthError({code:'invalid-email'}); return; }
+  if(!pass || pass.length<6){ showAuthError({code:'weak-password'}); return; }
+  const btn = $('signupBtn');
+  setBtnLoading(btn, 'بيتعمل الحساب…');
+  $('authError').classList.add('hidden');
+  auth.createUserWithEmailAndPassword(email,pass).then(cred=>{
+    return cred.user.updateProfile({displayName:name}).then(()=> db.collection('users').doc(cred.user.uid).set({
+      name, username: uname.trim().toLowerCase(), city:'', language:'ar', theme:'light', quranGoal:'surah',
+      onboarded:false, createdAt:firebase.firestore.FieldValue.serverTimestamp()
+    }));
+  }).then(()=>{
+    showToast('تم ✅ خطوتك الأولى بدأت');
+  }).catch(e=>{ resetBtn(btn); showAuthError(e); });
+}
+function doGoogle(){
+  const provider = new firebase.auth.GoogleAuthProvider();
+  const btns = [$('googleBtn'), $('googleBtn2')].filter(Boolean);
+  btns.forEach(b=>setBtnLoading(b,'ثواني وهنكمل…'));
+  auth.signInWithPopup(provider).then(async cred=>{
+    const ref = db.collection('users').doc(cred.user.uid);
+    const snap = await ref.get();
+    if(!snap.exists){
+      await ref.set({name:cred.user.displayName||'', email:cred.user.email||'', city:'', language:'ar', theme:'light', quranGoal:'surah', onboarded:false, createdAt:firebase.firestore.FieldValue.serverTimestamp()});
+    }
+  }).catch(e=>{ btns.forEach(resetBtn); showAuthError(e); });
+}
+function doLogout(){ auth.signOut(); }
+
+auth.onAuthStateChanged(async user=>{
+  if(!user){ CUR_USER=null; return renderAuth(); }
+  CUR_USER = user;
+  const snap = await db.collection('users').doc(user.uid).get();
+  PROFILE = snap.exists ? snap.data() : {};
+  if(!snap.exists || PROFILE.onboarded===false){
+    return renderOnboarding();
+  }
+  applyProfileToUI();
+  await loadToday();
+  renderMain();
+  goPage('dashboard');
+  refreshPrayerTimes();
+});
+
+function switchScreen(name){
+  ['loadingScreen'].forEach(id=>$(id) && $(id).classList.add('hidden'));
+  $('app').classList.remove('hidden');
+  ['view-auth','view-onboarding','view-main'].forEach(id=>$(id).classList.add('hidden'));
+  if(name) $(name).classList.remove('hidden');
+}
+function renderAuth(){ switchScreen('view-auth'); }
+
+/* ============ ONBOARDING ============ */
+const OB_STEPS = ['welcome','goals','quranGoal','city'];
+function renderOnboarding(){
+  switchScreen('view-onboarding'); obStep=0; renderObStep();
+}
+function renderObStep(){
+  const body=$('obBody'); const step=OB_STEPS[obStep];
+  $('obProgress').innerHTML = OB_STEPS.map((s,i)=>`<span class="${i<=obStep?'active':''}"></span>`).join('');
+  if(step==='welcome'){
+    body.innerHTML = `<div class="ob-emoji">🌙</div><div class="ob-title">أهلًا بك في خطوة ❤️</div>
+    <div class="ob-sub">مكان بسيط يساعدك تبني عادة الصلاة والقرآن.</div>`;
+    $('obNextBtn').textContent='ابدأ';
+  } else if(step==='goals'){
+    body.innerHTML = `<div class="ob-title" style="margin-bottom:20px">ما هدفك؟</div>
+    <div class="ob-options" id="goalOptions">
+      ${optRow('prayers','المحافظة على الصلوات')}
+      ${optRow('quran','قراءة القرآن يوميًا')}
+      ${optRow('thirty','بناء عادة لمدة 30 يومًا')}
+    </div>`;
+    $('obNextBtn').textContent='التالي';
+    body.querySelectorAll('.ob-option').forEach(el=>el.onclick=()=>{
+      const v=el.dataset.v;
+      const i=obAnswers.goals.indexOf(v);
+      if(i>-1) obAnswers.goals.splice(i,1); else obAnswers.goals.push(v);
+      el.classList.toggle('selected');
+    });
+  } else if(step==='quranGoal'){
+    body.innerHTML = `<div class="ob-title" style="margin-bottom:20px">اختر وردك</div>
+    <div class="ob-options" id="qgOptions">${QURAN_GOALS.map(g=>optRow(g.id,g.label,g.id===obAnswers.quranGoal)).join('')}</div>`;
+    body.querySelectorAll('.ob-option').forEach(el=>el.onclick=()=>{
+      obAnswers.quranGoal = el.dataset.v;
+      body.querySelectorAll('.ob-option').forEach(x=>x.classList.remove('selected'));
+      el.classList.add('selected');
+    });
+    $('obNextBtn').textContent='التالي';
+  } else if(step==='city'){
+    body.innerHTML = `<div class="ob-emoji">📍</div><div class="ob-title">اختر مدينتك</div>
+    <div class="ob-sub">حتى يتم حساب مواقيت الصلاة.</div>
+    <div class="field" style="width:100%"><input type="text" id="obCity" placeholder="مثال: القاهرة" value="${obAnswers.city}"></div>`;
+    $('obNextBtn').textContent='🚀 ابدأ رحلتي';
+  }
+}
+function optRow(v,label,selected){
+  return `<div class="ob-option ${selected?'selected':''}" data-v="${v}"><span class="check">${selected?'✓':''}</span>${label}</div>`;
+}
+async function obNext(){
+  const step = OB_STEPS[obStep];
+  if(step==='city'){
+    obAnswers.city = $('obCity') ? $('obCity').value.trim() : '';
+    if(!obAnswers.city){ showToast('اكتب مدينتك الأول 🙂'); return; }
+    const btn = $('obNextBtn');
+    setBtnLoading(btn, 'بنجهزلك رحلتك…');
+    await db.collection('users').doc(CUR_USER.uid).update({
+      city:obAnswers.city, quranGoal:obAnswers.quranGoal, goals:obAnswers.goals,
+      onboarded:true, streakRule:'full', calcMethod:'5', theme:'light', language:'ar',
+      startDate: TODAY
+    });
+    const snap = await db.collection('users').doc(CUR_USER.uid).get();
+    PROFILE = snap.data();
+    applyProfileToUI();
+    await loadToday();
+    renderMain(); goPage('dashboard'); refreshPrayerTimes();
+    resetBtn(btn);
+    return;
+  }
+  obStep++;
+  if(obStep>=OB_STEPS.length) obStep=OB_STEPS.length-1;
+  renderObStep();
+}
+
+/* ============ THEME / LANG ============ */
+function applyProfileToUI(){
+  document.documentElement.classList.toggle('dark', PROFILE.theme==='dark');
+  $('themeSwitch').classList.toggle('on', PROFILE.theme==='dark');
+  LANG = PROFILE.language || 'ar';
+  document.documentElement.lang = LANG;
+  document.documentElement.dir = LANG==='ar' ? 'rtl':'ltr';
+  $('langAr').classList.toggle('active', LANG==='ar');
+  $('langEn').classList.toggle('active', LANG==='en');
+  $('accName').value = PROFILE.name||'';
+  $('accCity').value = PROFILE.city||'';
+  $('accMethod').value = PROFILE.calcMethod||'5';
+  const initial = (PROFILE.name||'؟').trim().charAt(0);
+  $('avatarInitial').textContent = initial || '؟';
+  $('greetingText').textContent = DICT[LANG].greeting;
+}
+function toggleTheme(){
+  const newTheme = PROFILE.theme==='dark' ? 'light':'dark';
+  PROFILE.theme = newTheme;
+  db.collection('users').doc(CUR_USER.uid).update({theme:newTheme});
+  applyProfileToUI();
+}
+function setLang(l){
+  PROFILE.language = l;
+  db.collection('users').doc(CUR_USER.uid).update({language:l});
+  applyProfileToUI();
+  renderMain(); renderDashboard(); renderPrayerPage(); renderQuranPage();
+}
+function updateProfileField(field,val){
+  PROFILE[field]=val;
+  db.collection('users').doc(CUR_USER.uid).update({[field]:val});
+  applyProfileToUI();
+}
+function toggleNotifications(){
+  const on = !$('notifSwitch').classList.contains('on');
+  $('notifSwitch').classList.toggle('on', on);
+  if(on && 'Notification' in window){
+    Notification.requestPermission().then(perm=>{
+      if(perm!=='granted'){ $('notifSwitch').classList.remove('on'); showToast('لم يتم تفعيل الإشعارات'); }
+    });
+  }
+  db.collection('users').doc(CUR_USER.uid).update({notifications:on});
+}
+
+/* ============ NAVIGATION ============ */
+const NAV_ITEMS = [
+  {id:'dashboard', ic:'🏠', key:'home'},
+  {id:'prayer', ic:'🕌', key:'prayer'},
+  {id:'quran', ic:'📖', key:'quran'},
+  {id:'journey', ic:'📊', key:'journey'},
+  {id:'account', ic:'⚙️', key:'account'}
+];
+function renderMain(){
+  $('bottomNav').innerHTML = NAV_ITEMS.map(n=>`<button class="bn-btn" id="bn-${n.id}" onclick="goPage('${n.id}')"><span class="ic">${n.ic}</span>${DICT[LANG][n.key]}</button>`).join('');
+  $('sideNav').innerHTML = NAV_ITEMS.map(n=>`<button class="side-link" id="side-${n.id}" onclick="goPage('${n.id}')"><span class="ic">${n.ic}</span>${DICT[LANG][n.key]}</button>`).join('');
+  switchScreen('view-main');
+}
+function goPage(name){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  $('page-'+name).classList.add('active');
+  document.querySelectorAll('.bn-btn').forEach(b=>b.classList.remove('active'));
+  document.querySelectorAll('.side-link').forEach(b=>b.classList.remove('active'));
+  const bn=$('bn-'+name), sd=$('side-'+name);
+  if(bn) bn.classList.add('active'); if(sd) sd.classList.add('active');
+  if(name==='dashboard') renderDashboard();
+  if(name==='prayer') renderPrayerPage();
+  if(name==='quran') renderQuranPage();
+  if(name==='journey') renderJourneyPage();
+}
+
+/* ============ DATA LOAD ============ */
+function dayRef(dateStr){ return db.collection('users').doc(CUR_USER.uid).collection('days').doc(dateStr); }
+
+async function loadToday(){
+  const snap = await dayRef(TODAY).get();
+  TODAY_DATA = snap.exists ? snap.data() : {prayers:{}, quran:{}};
+  if(!TODAY_DATA.prayers) TODAY_DATA.prayers={};
+  if(!TODAY_DATA.quran) TODAY_DATA.quran={};
+}
+async function saveTodayField(){
+  await dayRef(TODAY).set(TODAY_DATA, {merge:true});
+}
+
+function dayIndexInJourney(){
+  if(!PROFILE.createdAtDate){ PROFILE.createdAtDate = TODAY; }
+  const start = new Date(PROFILE.startDate || TODAY);
+  const cur = new Date(TODAY);
+  const diff = Math.floor((cur-start)/86400000);
+  return Math.max(0, Math.min(29, diff));
+}
+function surahForDay(idx){ return SURAH_PLAN[idx % SURAH_PLAN.length]; }
+
+/* ============ DASHBOARD ============ */
+async function renderDashboard(){
+  $('todayDateLine').textContent = new Date().toLocaleDateString(LANG==='ar'?'ar-EG':'en-US',{weekday:'long', year:'numeric', month:'long', day:'numeric'});
+
+  const dayIdx = dayIndexInJourney();
+  $('journeyDayLabel').textContent = `اليوم ${dayIdx+1} من 30`;
+  $('daysRemainingLabel').textContent = 29-dayIdx;
+
+  await renderStepPath();
+
+  const surah = surahForDay(dayIdx);
+  $('dashSurahName').textContent = 'سورة '+surah.name;
+  $('dashSurahMeta').textContent = surah.verses+' آية';
+  $('qSurahName') && ($('qSurahName').textContent='سورة '+surah.name);
+  $('qSurahMeta') && ($('qSurahMeta').textContent=surah.verses+' آية');
+  const done = TODAY_DATA.quran && TODAY_DATA.quran.completed;
+  $('dashQuranBtn').textContent = done ? '✅ تم إتمام الورد' : 'ابدأ القراءة';
+
+  renderPrayerLists();
+  updateStreakUI();
+}
+
+async function renderStepPath(){
+  const el = $('steppath'); el.innerHTML='';
+  const dayIdx = dayIndexInJourney();
+  const start = new Date(PROFILE.startDate || TODAY);
+  let html='';
+  for(let i=0;i<30;i++){
+    const d = new Date(start); d.setDate(d.getDate()+i);
+    const ds = todayStr(d);
+    let cls='';
+    if(i<dayIdx || (i===dayIdx)){
+      const info = await getDaySummaryCached(ds);
+      if(info.complete) cls='done'; else if(info.partial) cls='partial';
+    }
+    if(i===dayIdx) cls+=' today';
+    html += `<div class="step-dot ${cls}">${i+1}</div>`;
+    if(i<29) html += `<div class="step-line ${i<dayIdx?'done':''}"></div>`;
+  }
+  el.innerHTML = html;
+}
+async function getDaySummaryCached(ds){
+  if(MONTH_CACHE[ds]) return MONTH_CACHE[ds];
+  if(ds===TODAY){
+    const c=daySummaryFromData(TODAY_DATA);
+    MONTH_CACHE[ds]=c; return c;
+  }
+  const snap = await dayRef(ds).get();
+  const data = snap.exists?snap.data():{prayers:{},quran:{}};
+  const c = daySummaryFromData(data);
+  MONTH_CACHE[ds]=c;
+  return c;
+}
+function daySummaryFromData(data){
+  const prayers = data.prayers||{};
+  const doneCount = PRAYERS.filter(p=>prayers[p.key] && prayers[p.key].status && prayers[p.key].status!=='none').length;
+  const quranDone = !!(data.quran && data.quran.completed);
+  return {complete: doneCount===5 && quranDone, partial: doneCount>0 || quranDone, doneCount, quranDone};
+}
+
+/* ============ PRAYER ============ */
+function renderPrayerLists(){
+  const doneCount = PRAYERS.filter(p=>TODAY_DATA.prayers[p.key] && TODAY_DATA.prayers[p.key].status && TODAY_DATA.prayers[p.key].status!=='none').length;
+  $('prayerDoneCount').textContent = doneCount;
+  const pct = (doneCount/5*100)+'%';
+  $('prayerProgressBar') && ($('prayerProgressBar').style.width = pct);
+  $('prayerProgressBar2') && ($('prayerProgressBar2').style.width = pct);
+
+  const listHtml = PRAYERS.map(p=>{
+    const entry = TODAY_DATA.prayers[p.key];
+    const isDone = entry && entry.status && entry.status!=='none';
+    const time = cachedTimings ? (cachedTimings[p.key]||'--:--') : '--:--';
+    return `<div class="prayer-row">
+      <div class="prayer-ic">${p.ic}</div>
+      <div class="prayer-info"><div class="prayer-name">${p.name}</div><div class="prayer-time">${time}${entry&&entry.status&&entry.status!=='none'?' · '+statusLabel(entry.status):''}</div></div>
+      <button class="prayer-check ${isDone?'done':''}" onclick="quickTogglePrayer('${p.key}')">${isDone?'✓':''}</button>
+    </div>`;
+  }).join('');
+  $('dashPrayerList').innerHTML = listHtml;
+  if($('prayerFullList')) $('prayerFullList').innerHTML = listHtml.replace(/onclick="quickTogglePrayer/g, `onclick="openPrayerStatus`);
+}
+function statusLabel(s){ const o=PRAYER_STATUS.find(x=>x.id===s); return o?o.label:''; }
+
+async function quickTogglePrayer(key){
+  const entry = TODAY_DATA.prayers[key];
+  const wasDone = entry && entry.status && entry.status!=='none';
+  if(wasDone){
+    TODAY_DATA.prayers[key] = {status:'none'};
+  } else {
+    TODAY_DATA.prayers[key] = {status:'ontime', completedAt:new Date().toISOString()};
+    showToast(ENCOURAGE_PRAYER[Math.floor(Math.random()*ENCOURAGE_PRAYER.length)]);
+  }
+  await afterPrayerChange();
+}
+function openPrayerStatus(key){
+  const p = PRAYERS.find(x=>x.key===key);
+  $('psTitle').textContent = p.name;
+  $('psChoices').innerHTML = PRAYER_STATUS.map(s=>{
+    const active = TODAY_DATA.prayers[key] && TODAY_DATA.prayers[key].status===s.id;
+    return `<button class="status-choice ${active?'active':''}" onclick="setPrayerStatus('${key}','${s.id}')">${s.label}</button>`;
+  }).join('');
+  openModal('prayerStatusModal');
+}
+async function setPrayerStatus(key, status){
+  TODAY_DATA.prayers[key] = status==='none' ? {status:'none'} : {status, completedAt:new Date().toISOString()};
+  closeModal('prayerStatusModal');
+  if(status!=='none') showToast(ENCOURAGE_PRAYER[Math.floor(Math.random()*ENCOURAGE_PRAYER.length)]);
+  await afterPrayerChange();
+}
+async function afterPrayerChange(){
+  await saveTodayField();
+  MONTH_CACHE[TODAY] = daySummaryFromData(TODAY_DATA);
+  renderPrayerLists();
+  await renderStepPath();
+  checkDayCompleteCelebration();
+  updateStreakUI();
+}
+function checkDayCompleteCelebration(){
+  const s = daySummaryFromData(TODAY_DATA);
+  if(s.complete && !TODAY_DATA._celebrated){
+    TODAY_DATA._celebrated = true;
+    showToast(ENCOURAGE_DAY[Math.floor(Math.random()*ENCOURAGE_DAY.length)]);
+  }
+}
+
+function renderPrayerPage(){ renderPrayerLists(); renderTimingsList(); }
+function renderTimingsList(){
+  if(!cachedTimings){ $('timingsList').textContent='جاري حساب المواقيت…'; return; }
+  $('timingsList').innerHTML = `
+    الفجر — ${cachedTimings.fajr}<br>الشروق — ${cachedTimings.sunrise}<br>الظهر — ${cachedTimings.dhuhr}<br>
+    العصر — ${cachedTimings.asr}<br>المغرب — ${cachedTimings.maghrib}<br>العشاء — ${cachedTimings.isha}`;
+}
+
+/* ============ PRAYER TIMES (Aladhan API) ============ */
+async function refreshPrayerTimes(){
+  const city = PROFILE.city;
+  const method = PROFILE.calcMethod || '5';
+  const cacheKey = `khatwa_timings_${city}_${method}_${TODAY}`;
+  const cached = localStorage.getItem(cacheKey);
+  if(cached){ cachedTimings = JSON.parse(cached); renderPrayerLists(); renderTimingsList(); startCountdown(); return; }
+  if(!city) return;
+  try{
+    const url = `https://api.aladhan.com/v1/timingsByCity?city=${encodeURIComponent(city)}&country=&method=${method}`;
+    const res = await fetch(url);
+    const json = await res.json();
+    const t = json.data.timings;
+    cachedTimings = {fajr:t.Fajr, sunrise:t.Sunrise, dhuhr:t.Dhuhr, asr:t.Asr, maghrib:t.Maghrib, isha:t.Isha};
+    localStorage.setItem(cacheKey, JSON.stringify(cachedTimings));
+    renderPrayerLists(); renderTimingsList(); startCountdown();
+  }catch(e){ $('timingsList').textContent='تعذر تحميل المواقيت، تحقق من اسم المدينة.'; }
+}
+function saveCitySettings(){
+  PROFILE.city = $('accCity').value.trim();
+  PROFILE.calcMethod = $('accMethod').value;
+  db.collection('users').doc(CUR_USER.uid).update({city:PROFILE.city, calcMethod:PROFILE.calcMethod});
+  cachedTimings = null;
+  refreshPrayerTimes();
+  showToast('تم الحفظ ✅');
+}
+function startCountdown(){
+  clearInterval(countdownTimer);
+  countdownTimer = setInterval(updateNextPrayer, 1000);
+  updateNextPrayer();
+}
+function updateNextPrayer(){
+  if(!cachedTimings) return;
+  const order = [['fajr','الفجر'],['dhuhr','الظهر'],['asr','العصر'],['maghrib','المغرب'],['isha','العشاء']];
+  const now = new Date();
+  let next = null;
+  for(const [k,label] of order){
+    const [h,m] = cachedTimings[k].split(':').map(Number);
+    const t = new Date(); t.setHours(h,m,0,0);
+    if(t>now){ next=[k,label,t]; break; }
+  }
+  if(!next){
+    const [h,m] = cachedTimings.fajr.split(':').map(Number);
+    const t = new Date(); t.setDate(t.getDate()+1); t.setHours(h,m,0,0);
+    next=['fajr','الفجر', t];
+  }
+  $('npName').textContent = next[1];
+  const diff = Math.max(0, next[2]-now);
+  const hh = String(Math.floor(diff/3600000)).padStart(2,'0');
+  const mm = String(Math.floor((diff%3600000)/60000)).padStart(2,'0');
+  const ss = String(Math.floor((diff%60000)/1000)).padStart(2,'0');
+  $('npCountdown').textContent = `${hh}:${mm}:${ss}`;
+}
+
+/* ============ QURAN ============ */
+function renderQuranPage(){
+  const dayIdx = dayIndexInJourney();
+  const surah = surahForDay(dayIdx);
+  $('qSurahName').textContent = 'سورة '+surah.name;
+  $('qSurahMeta').textContent = surah.verses+' آية';
+  $('qBtn').textContent = (TODAY_DATA.quran&&TODAY_DATA.quran.completed) ? '✅ تم إتمام الورد':'ابدأ القراءة';
+  $('quranGoalPicker').innerHTML = QURAN_GOALS.map(g=>`<button class="status-choice ${PROFILE.quranGoal===g.id?'active':''}" onclick="setQuranGoal('${g.id}')">${g.label}</button>`).join('');
+  computeMonthStats().then(s=>{
+    $('qDaysMonth').textContent = s.quranDays;
+    $('qTotalSurahs').textContent = s.totalSurahs;
+  });
+}
+function setQuranGoal(id){
+  PROFILE.quranGoal = id;
+  db.collection('users').doc(CUR_USER.uid).update({quranGoal:id});
+  renderQuranPage();
+  showToast('تم تحديث الهدف');
+}
+function openQuranReader(){
+  const dayIdx = dayIndexInJourney();
+  const surah = surahForDay(dayIdx);
+  $('qmTitle').textContent = 'سورة '+surah.name;
+  $('qmBody').textContent = `عدد الآيات: ${surah.verses}. خذ وقتك في التلاوة والتدبر، ثم اضغط "أتممت ورد اليوم" عند الانتهاء.`;
+  openModal('quranModal');
+}
+async function completeQuranToday(){
+  const dayIdx = dayIndexInJourney();
+  const surah = surahForDay(dayIdx);
+  TODAY_DATA.quran = {surah:surah.name, completed:true, completedAt:new Date().toISOString()};
+  await saveTodayField();
+  MONTH_CACHE[TODAY] = daySummaryFromData(TODAY_DATA);
+  closeModal('quranModal');
+  showToast('ما شاء الله ❤️ أنجزت وردك اليومي.');
+  renderDashboard(); renderQuranPage();
+  checkDayCompleteCelebration();
+  updateStreakUI();
+}
+
+/* ============ JOURNEY / CALENDAR / STATS ============ */
+async function computeMonthStats(monthDate){
+  monthDate = monthDate || new Date();
+  const year=monthDate.getFullYear(), month=monthDate.getMonth();
+  const daysInMonth = new Date(year, month+1, 0).getDate();
+  const snap = await db.collection('users').doc(CUR_USER.uid).collection('days').get();
+  let prayersDone=0, prayersTotal=0, quranDays=0, totalSurahs=0, completeDays=0;
+  let streak=0, longestStreak=0, everFullPrayerDay=false;
+  const byDate = {};
+  snap.forEach(doc=>{ byDate[doc.id]=doc.data(); });
+
+  // month-scoped stats
+  for(const [ds,data] of Object.entries(byDate)){
+    const d = new Date(ds);
+    if(d.getFullYear()===year && d.getMonth()===month){
+      const s = daySummaryFromData(data);
+      prayersDone += s.doneCount; prayersTotal += 5;
+      if(s.quranDone){ quranDays++; totalSurahs++; }
+      if(s.complete) completeDays++;
+      if(s.doneCount===5) everFullPrayerDay=true;
+    }
+  }
+  // streak across all history up to today
+  const sortedDates = Object.keys(byDate).sort();
+  let run=0, best=0;
+  const allDates = new Set(sortedDates);
+  let cursor = new Date(TODAY);
+  // compute current streak walking backwards from today
+  let curStreak=0;
+  while(true){
+    const ds = todayStr(cursor);
+    const s = allDates.has(ds) ? daySummaryFromData(byDate[ds]) : (ds===TODAY?daySummaryFromData(TODAY_DATA):{complete:false});
+    if(s.complete){ curStreak++; cursor.setDate(cursor.getDate()-1); } else break;
+  }
+  // longest streak overall
+  const allSorted = sortedDates.slice().sort();
+  let prevDate=null, chain=0;
+  allSorted.forEach(ds=>{
+    const s = daySummaryFromData(byDate[ds]);
+    if(s.complete){
+      if(prevDate){
+        const diffDays = (new Date(ds)-new Date(prevDate))/86400000;
+        chain = diffDays===1 ? chain+1 : 1;
+      } else chain=1;
+      best = Math.max(best, chain);
+      prevDate = ds;
+    } else { prevDate=null; chain=0; }
+  });
+  return {
+    prayersDone, prayersTotal, quranDays, totalSurahs, completeDays,
+    streak: curStreak, longestStreak: Math.max(best,curStreak), everFullPrayerDay,
+    completeDaysTotal: Object.values(byDate).filter(d=>daySummaryFromData(d).complete).length,
+    quranDaysTotal: Object.values(byDate).filter(d=>daySummaryFromData(d).quranDone).length,
+    byDate
+  };
+}
+async function updateStreakUI(){
+  const s = await computeMonthStats();
+  $('dashStreak') && ($('dashStreak').textContent = s.streak);
+  $('streakNote') && ($('streakNote').textContent = s.streak>0 ? 'استمر… أنت بتبني عادة جميلة.' : 'ابدأ اليوم أول خطوة ❤️');
+}
+async function renderJourneyPage(){
+  const s = await computeMonthStats(CAL_MONTH);
+  $('stPrayers').textContent = `${s.prayersDone}/${s.prayersTotal}`;
+  $('stQuran').textContent = s.quranDays;
+  $('stStreak').textContent = s.longestStreak;
+  $('stCompleteDays').textContent = s.completeDays;
+  renderCalendar(s.byDate);
+  renderAchievements(s);
+}
+function calShift(delta){
+  CAL_MONTH.setMonth(CAL_MONTH.getMonth()+delta);
+  renderJourneyPage();
+}
+function renderCalendar(byDate){
+  const year=CAL_MONTH.getFullYear(), month=CAL_MONTH.getMonth();
+  $('calMonthLabel').textContent = CAL_MONTH.toLocaleDateString('ar-EG',{month:'long', year:'numeric'});
+  const firstDow = new Date(year,month,1).getDay();
+  const daysInMonth = new Date(year,month+1,0).getDate();
+  const dows = ['أحد','اثنين','ثلاثاء','أربعاء','خميس','جمعة','سبت'];
+  let html = dows.map(d=>`<div class="cal-dow">${d}</div>`).join('');
+  for(let i=0;i<firstDow;i++) html += `<div class="cal-cell empty"></div>`;
+  for(let day=1; day<=daysInMonth; day++){
+    const ds = todayStr(new Date(year,month,day));
+    const data = byDate[ds];
+    const s = data ? daySummaryFromData(data) : {complete:false, partial:false};
+    let cls = s.complete?'done':(s.partial?'partial':'');
+    if(ds===TODAY) cls+=' today';
+    html += `<div class="cal-cell ${cls}" onclick="showDayDetail('${ds}')">${day}</div>`;
+  }
+  $('calGrid').innerHTML = html;
+}
+function showDayDetail(ds){
+  db.collection('users').doc(CUR_USER.uid).collection('days').doc(ds).get().then(snap=>{
+    const data = snap.exists?snap.data():{prayers:{},quran:{}};
+    const s = daySummaryFromData(data);
+    showToast(`${ds}: صلوات ${s.doneCount}/5 ${s.quranDone?'· قرآن ✓':''}`);
+  });
+}
+function renderAchievements(s){
+  const d = {
+    completeDays: s.completeDaysTotal, everFullPrayerDay: s.everFullPrayerDay,
+    quranDaysTotal: s.quranDaysTotal, longestStreak: s.longestStreak
+  };
+  $('achGrid').innerHTML = ACHIEVEMENTS.map(a=>{
+    const unlocked = a.cond(d);
+    return `<div class="ach-item ${unlocked?'unlocked':''}"><div class="ach-emoji">${a.emoji}</div><div class="ach-name">${a.name}</div><div class="ach-desc">${a.desc}</div></div>`;
+  }).join('');
+}
+
+/* ============ ADHKAR ============ */
+function openAdhkar(){
+  ADHKAR_STATE = ADHKAR_STATE || {};
+  const body = $('adhkarBody');
+  let html='';
+  ['morning','evening','sleep'].forEach(cat=>{
+    const label = {morning:'أذكار الصباح', evening:'أذكار المساء', sleep:'قبل النوم'}[cat];
+    html += `<div class="section-title" style="margin-top:14px">${label}</div>`;
+    ADHKAR[cat].forEach((item,i)=>{
+      const key = cat+'_'+i;
+      const count = ADHKAR_STATE[key]||0;
+      html += `<div class="dhikr-row"><div><div class="dhikr-text">${item.t}</div><div class="dhikr-count">${count} / ${item.n}</div></div><button class="dhikr-plus" onclick="incDhikr('${key}', ${item.n})">+</button></div>`;
+    });
+  });
+  body.innerHTML = html;
+  openModal('adhkarModal');
+}
+function incDhikr(key, max){
+  ADHKAR_STATE[key] = Math.min(max, (ADHKAR_STATE[key]||0)+1);
+  openAdhkar();
+}
+
+/* ============ RESET ============ */
+async function confirmReset(){
+  if(!confirm('هل أنت متأكد من إعادة تعيين كل التقدم؟ لا يمكن التراجع.')) return;
+  const snap = await db.collection('users').doc(CUR_USER.uid).collection('days').get();
+  const batch = db.batch();
+  snap.forEach(doc=>batch.delete(doc.ref));
+  await batch.commit();
+  MONTH_CACHE = {};
+  await loadToday();
+  showToast('تم إعادة التعيين');
+  renderDashboard();
+}
+
+/* ============ notification permission state sync ============ */
+document.addEventListener('DOMContentLoaded', ()=>{
+  if('Notification' in window && Notification.permission==='granted'){
+    $('notifSwitch') && $('notifSwitch').classList.add('on');
+  }
+});
+</script>
+</body>
+</html>
