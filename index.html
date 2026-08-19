@@ -674,12 +674,15 @@ function doSignup(){
   setBtnLoading(btn, 'بيتعمل الحساب…');
   $('authError').classList.add('hidden');
   auth.createUserWithEmailAndPassword(email,pass).then(cred=>{
-    return cred.user.updateProfile({displayName:name}).then(()=> db.collection('users').doc(cred.user.uid).set({
+    // الحساب اتعمل خلاص في Firebase Auth - ده الجزء المهم ونعتبره نجح
+    resetBtn(btn);
+    showToast('تم إنشاء حسابك ✅ يلا نكمل الخطوات');
+    // حفظ بيانات البروفايل يحصل في الخلفية ومايوقفش المستخدم لو اتأخر شوية
+    cred.user.updateProfile({displayName:name}).catch(e=>console.warn('updateProfile:', e));
+    db.collection('users').doc(cred.user.uid).set({
       name, username: uname.trim().toLowerCase(), city:'', language:'ar', theme:'light', quranGoal:'surah',
       onboarded:false, createdAt:firebase.firestore.FieldValue.serverTimestamp()
-    }));
-  }).then(()=>{
-    showToast('تم ✅ خطوتك الأولى بدأت');
+    }, {merge:true}).catch(e=>console.warn('profile set (will retry via onboarding):', e));
   }).catch(e=>{ resetBtn(btn); showAuthError(e); });
 }
 function doGoogle(){
@@ -700,26 +703,23 @@ auth.onAuthStateChanged(async user=>{
   const stuckBtns = [$('loginBtn'), $('signupBtn'), $('googleBtn'), $('googleBtn2')];
   if(!user){ CUR_USER=null; stuckBtns.forEach(resetBtn); return renderAuth(); }
   CUR_USER = user;
+  let snap;
   try{
-    const snap = await db.collection('users').doc(user.uid).get();
-    PROFILE = snap.exists ? snap.data() : {};
-    if(!snap.exists || PROFILE.onboarded===false){
-      stuckBtns.forEach(resetBtn);
-      return renderOnboarding();
-    }
-    applyProfileToUI();
-    await loadToday();
-    renderMain();
-    goPage('dashboard');
-    refreshPrayerTimes();
-    stuckBtns.forEach(resetBtn);
+    snap = await db.collection('users').doc(user.uid).get();
   }catch(e){
-    console.error('onAuthStateChanged error:', e);
-    stuckBtns.forEach(resetBtn);
-    await auth.signOut().catch(()=>{});
-    renderAuth();
-    showAuthError({message:'اتسجّل الدخول لكن حصلت مشكلة في تحميل بياناتك. الأغلب قواعد الأمان (Firestore Rules) لسه مش متظبطة صح، أو في مشكلة في الاتصال بقاعدة البيانات. جرب تاني.'});
+    console.warn('profile read failed, treating as new user:', e);
+    snap = {exists:false};
   }
+  PROFILE = (snap && snap.exists) ? snap.data() : {};
+  stuckBtns.forEach(resetBtn);
+  if(!snap.exists || PROFILE.onboarded===false){
+    return renderOnboarding();
+  }
+  applyProfileToUI();
+  try{ await loadToday(); }catch(e){ console.warn('loadToday failed:', e); }
+  renderMain();
+  goPage('dashboard');
+  refreshPrayerTimes();
 });
 
 function switchScreen(name){
@@ -782,11 +782,11 @@ async function obNext(){
     if(!obAnswers.city){ showToast('اكتب مدينتك الأول 🙂'); return; }
     const btn = $('obNextBtn');
     setBtnLoading(btn, 'بنجهزلك رحلتك…');
-    await db.collection('users').doc(CUR_USER.uid).update({
+    await db.collection('users').doc(CUR_USER.uid).set({
       city:obAnswers.city, quranGoal:obAnswers.quranGoal, goals:obAnswers.goals,
       onboarded:true, streakRule:'full', calcMethod:'5', theme:'light', language:'ar',
       startDate: TODAY
-    });
+    }, {merge:true});
     const snap = await db.collection('users').doc(CUR_USER.uid).get();
     PROFILE = snap.data();
     applyProfileToUI();
@@ -819,18 +819,18 @@ function applyProfileToUI(){
 function toggleTheme(){
   const newTheme = PROFILE.theme==='dark' ? 'light':'dark';
   PROFILE.theme = newTheme;
-  db.collection('users').doc(CUR_USER.uid).update({theme:newTheme});
+  db.collection('users').doc(CUR_USER.uid).set({theme:newTheme}, {merge:true});
   applyProfileToUI();
 }
 function setLang(l){
   PROFILE.language = l;
-  db.collection('users').doc(CUR_USER.uid).update({language:l});
+  db.collection('users').doc(CUR_USER.uid).set({language:l}, {merge:true});
   applyProfileToUI();
   renderMain(); renderDashboard(); renderPrayerPage(); renderQuranPage();
 }
 function updateProfileField(field,val){
   PROFILE[field]=val;
-  db.collection('users').doc(CUR_USER.uid).update({[field]:val});
+  db.collection('users').doc(CUR_USER.uid).set({[field]:val}, {merge:true});
   applyProfileToUI();
 }
 function toggleNotifications(){
@@ -841,7 +841,7 @@ function toggleNotifications(){
       if(perm!=='granted'){ $('notifSwitch').classList.remove('on'); showToast('لم يتم تفعيل الإشعارات'); }
     });
   }
-  db.collection('users').doc(CUR_USER.uid).update({notifications:on});
+  db.collection('users').doc(CUR_USER.uid).set({notifications:on}, {merge:true});
 }
 
 /* ============ NAVIGATION ============ */
@@ -1046,7 +1046,7 @@ async function refreshPrayerTimes(){
 function saveCitySettings(){
   PROFILE.city = $('accCity').value.trim();
   PROFILE.calcMethod = $('accMethod').value;
-  db.collection('users').doc(CUR_USER.uid).update({city:PROFILE.city, calcMethod:PROFILE.calcMethod});
+  db.collection('users').doc(CUR_USER.uid).set({city:PROFILE.city, calcMethod:PROFILE.calcMethod}, {merge:true});
   cachedTimings = null;
   refreshPrayerTimes();
   showToast('تم الحفظ ✅');
@@ -1094,7 +1094,7 @@ function renderQuranPage(){
 }
 function setQuranGoal(id){
   PROFILE.quranGoal = id;
-  db.collection('users').doc(CUR_USER.uid).update({quranGoal:id});
+  db.collection('users').doc(CUR_USER.uid).set({quranGoal:id}, {merge:true});
   renderQuranPage();
   showToast('تم تحديث الهدف');
 }
