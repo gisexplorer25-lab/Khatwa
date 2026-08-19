@@ -621,9 +621,17 @@ function setBtnLoading(btn, text){
   btn.dataset.loading='1';
   btn.disabled = true;
   btn.innerHTML = `<span class="spin"></span> ${text}`;
+  clearTimeout(btn._watchdog);
+  btn._watchdog = setTimeout(()=>{
+    if(btn.dataset.loading==='1'){
+      resetBtn(btn);
+      showAuthError({message:'الاتصال أخد وقت أطول من المتوقع. اتأكد من النت وجرب تاني، أو افتح الـ Console (F12) وابعتلي اللي ظاهر فيه.'});
+    }
+  }, 12000);
 }
 function resetBtn(btn){
   if(!btn) return;
+  clearTimeout(btn._watchdog);
   btn.disabled = false;
   btn.dataset.loading='';
   if(btn._orig) btn.innerHTML = btn._orig;
@@ -689,18 +697,29 @@ function doGoogle(){
 function doLogout(){ auth.signOut(); }
 
 auth.onAuthStateChanged(async user=>{
-  if(!user){ CUR_USER=null; return renderAuth(); }
+  const stuckBtns = [$('loginBtn'), $('signupBtn'), $('googleBtn'), $('googleBtn2')];
+  if(!user){ CUR_USER=null; stuckBtns.forEach(resetBtn); return renderAuth(); }
   CUR_USER = user;
-  const snap = await db.collection('users').doc(user.uid).get();
-  PROFILE = snap.exists ? snap.data() : {};
-  if(!snap.exists || PROFILE.onboarded===false){
-    return renderOnboarding();
+  try{
+    const snap = await db.collection('users').doc(user.uid).get();
+    PROFILE = snap.exists ? snap.data() : {};
+    if(!snap.exists || PROFILE.onboarded===false){
+      stuckBtns.forEach(resetBtn);
+      return renderOnboarding();
+    }
+    applyProfileToUI();
+    await loadToday();
+    renderMain();
+    goPage('dashboard');
+    refreshPrayerTimes();
+    stuckBtns.forEach(resetBtn);
+  }catch(e){
+    console.error('onAuthStateChanged error:', e);
+    stuckBtns.forEach(resetBtn);
+    await auth.signOut().catch(()=>{});
+    renderAuth();
+    showAuthError({message:'اتسجّل الدخول لكن حصلت مشكلة في تحميل بياناتك. الأغلب قواعد الأمان (Firestore Rules) لسه مش متظبطة صح، أو في مشكلة في الاتصال بقاعدة البيانات. جرب تاني.'});
   }
-  applyProfileToUI();
-  await loadToday();
-  renderMain();
-  goPage('dashboard');
-  refreshPrayerTimes();
 });
 
 function switchScreen(name){
