@@ -569,6 +569,10 @@ function showToast(msg){
 }
 function openModal(id){ $(id).classList.remove('hidden'); }
 function closeModal(id){ $(id).classList.add('hidden'); }
+function cacheProfileNow(){ try{ if(CUR_USER) localStorage.setItem('khatwa_profile_'+CUR_USER.uid, JSON.stringify(PROFILE)); }catch(e){} }
+function getCachedProfile(uid){ try{ const v=localStorage.getItem('khatwa_profile_'+uid); return v?JSON.parse(v):null; }catch(e){ return null; } }
+function cacheTodayNow(){ try{ if(CUR_USER) localStorage.setItem('khatwa_today_'+CUR_USER.uid+'_'+TODAY, JSON.stringify(TODAY_DATA)); }catch(e){} }
+function getCachedToday(uid){ try{ const v=localStorage.getItem('khatwa_today_'+uid+'_'+TODAY); return v?JSON.parse(v):null; }catch(e){ return null; } }
 
 /* ============ AUTH (تلقائي بدون تسجيل دخول) ============ */
 function setBtnLoading(btn, text){
@@ -604,6 +608,22 @@ auth.onAuthStateChanged(async user=>{
     return; // هيرجع يدخل تاني في onAuthStateChanged لما ينجح الدخول
   }
   CUR_USER = user;
+
+  // === مسار سريع: لو عندنا نسخة محفوظة محليًا من قبل، اعرضها فورًا من غير ما تستنى فايرستور ===
+  const cachedProfile = getCachedProfile(user.uid);
+  if(cachedProfile && cachedProfile.onboarded){
+    PROFILE = cachedProfile;
+    TODAY_DATA = getCachedToday(user.uid) || {prayers:{}, quran:{}};
+    applyProfileToUI();
+    renderMain();
+    goPage('dashboard');
+    refreshPrayerTimes();
+    // مزامنة هادئة في الخلفية: لو فيه تحديث جديد من جهاز/متصفح تاني، هيتحدّث من غير ما يوقف حاجة
+    syncProfileInBackground(user.uid);
+    return;
+  }
+
+  // === أول زيارة، أو مفيش نسخة محفوظة: لازم نستنى فايرستور ===
   let snap;
   try{
     snap = await db.collection('users').doc(user.uid).get();
@@ -615,12 +635,28 @@ auth.onAuthStateChanged(async user=>{
   if(!snap.exists || PROFILE.onboarded===false){
     return renderOnboarding();
   }
+  cacheProfileNow();
   applyProfileToUI();
   try{ await loadToday(); }catch(e){ console.warn('loadToday failed:', e); }
   renderMain();
   goPage('dashboard');
   refreshPrayerTimes();
 });
+
+async function syncProfileInBackground(uid){
+  try{
+    const snap = await db.collection('users').doc(uid).get();
+    if(snap.exists){
+      PROFILE = snap.data();
+      cacheProfileNow();
+      applyProfileToUI();
+    }
+    await loadToday();
+    cacheTodayNow();
+    // حدّث الشاشة الحالية بهدوء لو المستخدم لسه واقف على الداشبورد
+    if(!$('view-main').classList.contains('hidden')) renderMain();
+  }catch(e){ console.warn('background sync failed:', e); }
+}
 
 function switchScreen(name){
   ['loadingScreen'].forEach(id=>$(id) && $(id).classList.add('hidden'));
@@ -686,16 +722,18 @@ async function obNext(){
     const btn = $('obNextBtn');
     setBtnLoading(btn, 'بنجهزلك رحلتك…');
     try{
-      await db.collection('users').doc(CUR_USER.uid).set({
+      const newProfile = {
         city:obAnswers.city, quranGoal:obAnswers.quranGoal, goals:obAnswers.goals,
         onboarded:true, streakRule:'full', calcMethod:'5', theme:'light', language:'ar',
         startDate: TODAY
-      }, {merge:true});
-      const snap = await db.collection('users').doc(CUR_USER.uid).get();
-      PROFILE = snap.data();
+      };
+      PROFILE = newProfile; // نحدّث الحالة المحلية فورًا من غير ما نستنى قراءة تانية من فايرستور
+      cacheProfileNow();
       applyProfileToUI();
-      await loadToday();
+      TODAY_DATA = {prayers:{}, quran:{}};
+      cacheTodayNow();
       renderMain(); goPage('dashboard'); refreshPrayerTimes();
+      await db.collection('users').doc(CUR_USER.uid).set(newProfile, {merge:true});
     }catch(e){
       console.error('onboarding save failed:', e);
       showToast('حصل خطأ وإحنا بنحفظ بياناتك، جرب تاني (شوف الـ Console بـ F12 لتفاصيل أكتر)');
@@ -729,17 +767,20 @@ function applyProfileToUI(){
 function toggleTheme(){
   const newTheme = PROFILE.theme==='dark' ? 'light':'dark';
   PROFILE.theme = newTheme;
+  cacheProfileNow();
   db.collection('users').doc(CUR_USER.uid).set({theme:newTheme}, {merge:true});
   applyProfileToUI();
 }
 function setLang(l){
   PROFILE.language = l;
+  cacheProfileNow();
   db.collection('users').doc(CUR_USER.uid).set({language:l}, {merge:true});
   applyProfileToUI();
   renderMain(); renderDashboard(); renderPrayerPage(); renderQuranPage();
 }
 function updateProfileField(field,val){
   PROFILE[field]=val;
+  cacheProfileNow();
   db.collection('users').doc(CUR_USER.uid).set({[field]:val}, {merge:true});
   applyProfileToUI();
 }
@@ -751,6 +792,8 @@ function toggleNotifications(){
       if(perm!=='granted'){ $('notifSwitch').classList.remove('on'); showToast('لم يتم تفعيل الإشعارات'); }
     });
   }
+  PROFILE.notifications = on;
+  cacheProfileNow();
   db.collection('users').doc(CUR_USER.uid).set({notifications:on}, {merge:true});
 }
 
@@ -788,8 +831,10 @@ async function loadToday(){
   TODAY_DATA = snap.exists ? snap.data() : {prayers:{}, quran:{}};
   if(!TODAY_DATA.prayers) TODAY_DATA.prayers={};
   if(!TODAY_DATA.quran) TODAY_DATA.quran={};
+  cacheTodayNow();
 }
 async function saveTodayField(){
+  cacheTodayNow();
   await dayRef(TODAY).set(TODAY_DATA, {merge:true});
 }
 
@@ -970,6 +1015,7 @@ function saveCitySettings(){
   PROFILE.city = getAccSelectedCity();
   if(!PROFILE.city){ showToast('اختار مدينتك الأول 🙂'); return; }
   PROFILE.calcMethod = $('accMethod').value;
+  cacheProfileNow();
   db.collection('users').doc(CUR_USER.uid).set({city:PROFILE.city, calcMethod:PROFILE.calcMethod}, {merge:true});
   cachedTimings = null;
   refreshPrayerTimes();
@@ -1018,6 +1064,7 @@ function renderQuranPage(){
 }
 function setQuranGoal(id){
   PROFILE.quranGoal = id;
+  cacheProfileNow();
   db.collection('users').doc(CUR_USER.uid).set({quranGoal:id}, {merge:true});
   renderQuranPage();
   showToast('تم تحديث الهدف');
