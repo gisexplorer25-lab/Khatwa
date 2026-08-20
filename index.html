@@ -463,8 +463,7 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 const db = firebase.firestore();
-db.settings({ experimentalAutoDetectLongPolling: true, merge: true });
-db.enablePersistence({synchronizeTabs:true}).catch(e=>console.warn('offline persistence not enabled:', e.code));
+db.settings({ experimentalForceLongPolling: true, merge: true });
 
 /* ============ i18n ============ */
 const DICT = {
