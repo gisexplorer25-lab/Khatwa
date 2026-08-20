@@ -248,7 +248,8 @@ html[dir="ltr"] .switch.on::after{transform:translateX(19px);}
 </head>
 <body>
 
-<div id="loadingScreen"><div class="loader-step"></div><div class="loading-text">جاري التحميل…</div></div>
+<div id="loadingScreen"><div class="loader-step"></div><div class="loading-text" id="loadingText">جاري التحميل…</div></div>
+<script>setTimeout(()=>{ const t=document.getElementById('loadingText'); if(t && !document.getElementById('loadingScreen').classList.contains('hidden')) t.textContent='لسه بنحاول نتصل… اتأكد من النت'; }, 6000);</script>
 
 <div class="app hidden" id="app">
 
@@ -383,7 +384,13 @@ html[dir="ltr"] .switch.on::after{transform:translateX(19px);}
 
         <div class="section-title">مواقيت الصلاة</div>
         <div class="card">
-          <div class="field"><label>المدينة</label><input type="text" id="accCity" placeholder="مثال: القاهرة"></div>
+          <div class="field"><label>المدينة</label>
+            <select id="accCitySelect" onchange="onAccCitySelectChange()"></select>
+          </div>
+          <div class="field hidden" id="accCityOtherWrap">
+            <label>اكتب اسم مدينتك</label>
+            <input type="text" id="accCityOther" placeholder="مثال: القاهرة">
+          </div>
           <div class="field"><label>طريقة الحساب</label>
             <select id="accMethod">
               <option value="5">الهيئة المصرية العامة للمساحة</option>
@@ -457,6 +464,7 @@ firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 const db = firebase.firestore();
 db.settings({ experimentalAutoDetectLongPolling: true, merge: true });
+db.enablePersistence({synchronizeTabs:true}).catch(e=>console.warn('offline persistence not enabled:', e.code));
 
 /* ============ i18n ============ */
 const DICT = {
@@ -489,6 +497,38 @@ const QURAN_GOALS = [
   {id:'surah', label:'سورة واحدة'},{id:'p5', label:'5 صفحات'},{id:'p10', label:'10 صفحات'},
   {id:'half_juz', label:'نصف جزء'},{id:'juz', label:'جزء كامل'},{id:'min10', label:'10 دقائق قراءة'}
 ];
+const CITY_LIST = [
+  {group:'مصر', cities:[
+    'القاهرة','الجيزة','الإسكندرية','المنصورة','طنطا','الإسماعيلية','بورسعيد','السويس',
+    'الزقازيق','دمياط','كفر الشيخ','المنيا','أسيوط','سوهاج','قنا','الأقصر','أسوان',
+    'الفيوم','بني سويف','دمنهور','شبين الكوم','الغردقة','شرم الشيخ','مرسى مطروح','العريش'
+  ]},
+  {group:'السعودية', cities:['الرياض','جدة','مكة المكرمة','المدينة المنورة','الدمام','الطائف','أبها','تبوك']},
+  {group:'الإمارات', cities:['دبي','أبوظبي','الشارقة','العين','عجمان']},
+  {group:'دول عربية أخرى', cities:['الكويت','الدوحة','المنامة','مسقط','عمّان','بيروت','بغداد','الخرطوم','الرباط','تونس','الجزائر']}
+];
+function cityOptionsHTML(selected){
+  let html = `<option value="" disabled ${!selected?'selected':''}>اختر مدينتك…</option>`;
+  CITY_LIST.forEach(g=>{
+    html += `<optgroup label="${g.group}">`;
+    g.cities.forEach(c=>{ html += `<option value="${c}" ${c===selected?'selected':''}>${c}</option>`; });
+    html += `</optgroup>`;
+  });
+  const isOther = selected && !CITY_LIST.some(g=>g.cities.includes(selected));
+  html += `<option value="__other__" ${isOther?'selected':''}>مدينة تانية (اكتبها بنفسك)</option>`;
+  return {html, isOther};
+}
+function getSelectedCity(){
+  const sel = $('obCitySelect');
+  if(!sel) return '';
+  if(sel.value==='__other__') return ($('obCityOther')?$('obCityOther').value.trim():'');
+  return sel.value||'';
+}
+function onCitySelectChange(){
+  const other = $('obCityOtherWrap');
+  if(!other) return;
+  other.classList.toggle('hidden', $('obCitySelect').value!=='__other__');
+}
 const ENCOURAGE_PRAYER = ["ربنا يتقبل منك ❤️","خطوة جميلة.","استمر، واحدة واحدة.","الحمد لله ❤️"];
 const ENCOURAGE_DAY = ["ما شاء الله، يوم جميل. 🎉","الحمد لله على التوفيق ❤️","يوم موفق، استمر هكذا."];
 const ENCOURAGE_COMEBACK = "ولا يهمك ❤️ المهم إنك رجعت. ابدأ من الصلاة القادمة.";
@@ -542,7 +582,8 @@ function setBtnLoading(btn, text){
   btn._watchdog = setTimeout(()=>{
     if(btn.dataset.loading==='1'){
       resetBtn(btn);
-      showAuthError({message:'الاتصال أخد وقت أطول من المتوقع. اتأكد من النت وجرب تاني، أو افتح الـ Console (F12) وابعتلي اللي ظاهر فيه.'});
+      showToast('الاتصال أخد وقت أطول من المتوقع. اتأكد من النت وجرب تاني.');
+      console.warn('Operation timed out after 12s — check Firestore rules / network / Firebase config.');
     }
   }, 12000);
 }
@@ -625,9 +666,13 @@ function renderObStep(){
     });
     $('obNextBtn').textContent='التالي';
   } else if(step==='city'){
+    const {html, isOther} = cityOptionsHTML(obAnswers.city);
     body.innerHTML = `<div class="ob-emoji">📍</div><div class="ob-title">اختر مدينتك</div>
     <div class="ob-sub">حتى يتم حساب مواقيت الصلاة.</div>
-    <div class="field" style="width:100%"><input type="text" id="obCity" placeholder="مثال: القاهرة" value="${obAnswers.city}"></div>`;
+    <div class="field" style="width:100%"><select id="obCitySelect" onchange="onCitySelectChange()">${html}</select></div>
+    <div class="field ${isOther?'':'hidden'}" style="width:100%" id="obCityOtherWrap">
+      <input type="text" id="obCityOther" placeholder="اكتب اسم مدينتك" value="${isOther?obAnswers.city:''}">
+    </div>`;
     $('obNextBtn').textContent='🚀 ابدأ رحلتي';
   }
 }
@@ -637,21 +682,27 @@ function optRow(v,label,selected){
 async function obNext(){
   const step = OB_STEPS[obStep];
   if(step==='city'){
-    obAnswers.city = $('obCity') ? $('obCity').value.trim() : '';
-    if(!obAnswers.city){ showToast('اكتب مدينتك الأول 🙂'); return; }
+    obAnswers.city = getSelectedCity();
+    if(!obAnswers.city){ showToast('اختار مدينتك الأول 🙂'); return; }
     const btn = $('obNextBtn');
     setBtnLoading(btn, 'بنجهزلك رحلتك…');
-    await db.collection('users').doc(CUR_USER.uid).set({
-      city:obAnswers.city, quranGoal:obAnswers.quranGoal, goals:obAnswers.goals,
-      onboarded:true, streakRule:'full', calcMethod:'5', theme:'light', language:'ar',
-      startDate: TODAY
-    }, {merge:true});
-    const snap = await db.collection('users').doc(CUR_USER.uid).get();
-    PROFILE = snap.data();
-    applyProfileToUI();
-    await loadToday();
-    renderMain(); goPage('dashboard'); refreshPrayerTimes();
-    resetBtn(btn);
+    try{
+      await db.collection('users').doc(CUR_USER.uid).set({
+        city:obAnswers.city, quranGoal:obAnswers.quranGoal, goals:obAnswers.goals,
+        onboarded:true, streakRule:'full', calcMethod:'5', theme:'light', language:'ar',
+        startDate: TODAY
+      }, {merge:true});
+      const snap = await db.collection('users').doc(CUR_USER.uid).get();
+      PROFILE = snap.data();
+      applyProfileToUI();
+      await loadToday();
+      renderMain(); goPage('dashboard'); refreshPrayerTimes();
+    }catch(e){
+      console.error('onboarding save failed:', e);
+      showToast('حصل خطأ وإحنا بنحفظ بياناتك، جرب تاني (شوف الـ Console بـ F12 لتفاصيل أكتر)');
+    }finally{
+      resetBtn(btn);
+    }
     return;
   }
   obStep++;
@@ -669,7 +720,8 @@ function applyProfileToUI(){
   $('langAr').classList.toggle('active', LANG==='ar');
   $('langEn').classList.toggle('active', LANG==='en');
   $('accName').value = PROFILE.name||'';
-  $('accCity').value = PROFILE.city||'';
+  $('accCitySelect').innerHTML = cityOptionsHTML(PROFILE.city).html;
+  onAccCitySelectChange();
   $('accMethod').value = PROFILE.calcMethod||'5';
   const initial = (PROFILE.name||'؟').trim().charAt(0);
   $('avatarInitial').textContent = initial || '؟';
@@ -902,8 +954,22 @@ async function refreshPrayerTimes(){
     renderPrayerLists(); renderTimingsList(); startCountdown();
   }catch(e){ $('timingsList').textContent='تعذر تحميل المواقيت، تحقق من اسم المدينة.'; }
 }
+function onAccCitySelectChange(){
+  const other = $('accCityOtherWrap');
+  if(!other) return;
+  const isOther = $('accCitySelect').value==='__other__';
+  other.classList.toggle('hidden', !isOther);
+  if(isOther) $('accCityOther').value = PROFILE.city||'';
+}
+function getAccSelectedCity(){
+  const sel = $('accCitySelect');
+  if(!sel) return '';
+  if(sel.value==='__other__') return ($('accCityOther')?$('accCityOther').value.trim():'');
+  return sel.value||'';
+}
 function saveCitySettings(){
-  PROFILE.city = $('accCity').value.trim();
+  PROFILE.city = getAccSelectedCity();
+  if(!PROFILE.city){ showToast('اختار مدينتك الأول 🙂'); return; }
   PROFILE.calcMethod = $('accMethod').value;
   db.collection('users').doc(CUR_USER.uid).set({city:PROFILE.city, calcMethod:PROFILE.calcMethod}, {merge:true});
   cachedTimings = null;
